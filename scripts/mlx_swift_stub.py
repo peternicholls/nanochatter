@@ -9,9 +9,7 @@ from pathlib import Path
 from nanochat.tokenizer import get_tokenizer
 from nanochat.swift_build import (
     build_products_dir,
-    bundle_path,
     ensure_stub_is_built,
-    package_dir,
     stub_binary_path,
 )
 

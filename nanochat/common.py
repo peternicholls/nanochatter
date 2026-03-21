@@ -82,7 +82,7 @@ def bytes_to_gb(num_bytes: int | float) -> float:
 
 def get_mps_memory_stats(*, budget_frac: float = 0.9) -> dict[str, float | bool]:
     budget_frac = min(max(float(budget_frac), 0.0), 1.0)
-    if not hasattr(torch, "mps"):
+    if not torch.backends.mps.is_available():
         return {
             "allocated_gb": 0.0,
             "driver_gb": 0.0,

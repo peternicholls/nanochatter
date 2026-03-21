@@ -85,75 +85,79 @@ def main():
 
     conversation_tokens = [bos]
 
-    while True:
+    try:
+        while True:
 
-        if args.prompt:
-            # Get the prompt from the launch command
-            user_input = args.prompt
-        else:
-            # Get the prompt interactively from the console
-            try:
-                user_input = input("\nUser: ").strip()
-            except (EOFError, KeyboardInterrupt):
-                print("\nGoodbye!")
+            if args.prompt:
+                # Get the prompt from the launch command
+                user_input = args.prompt
+            else:
+                # Get the prompt interactively from the console
+                try:
+                    user_input = input("\nUser: ").strip()
+                except (EOFError, KeyboardInterrupt):
+                    print("\nGoodbye!")
+                    break
+
+            # Handle special commands
+            if user_input.lower() in ['quit', 'exit']:
+                print("Goodbye!")
                 break
 
-        # Handle special commands
-        if user_input.lower() in ['quit', 'exit']:
-            print("Goodbye!")
-            break
+            if user_input.lower() == 'clear':
+                conversation_tokens = [bos]
+                print("Conversation cleared.")
+                continue
 
-        if user_input.lower() == 'clear':
-            conversation_tokens = [bos]
-            print("Conversation cleared.")
-            continue
+            if not user_input:
+                continue
 
-        if not user_input:
-            continue
+            # Add User message to the conversation
+            conversation_tokens.append(user_start)
+            conversation_tokens.extend(tokenizer.encode(user_input))
+            conversation_tokens.append(user_end)
 
-        # Add User message to the conversation
-        conversation_tokens.append(user_start)
-        conversation_tokens.extend(tokenizer.encode(user_input))
-        conversation_tokens.append(user_end)
+            # Kick off the assistant
+            conversation_tokens.append(assistant_start)
+            generate_kwargs = {
+                "num_samples": 1,
+                "max_tokens": args.max_tokens,
+                "temperature": 0.0 if selected_swift_manifest is not None else args.temperature,
+                "top_k": 0 if selected_swift_manifest is not None else args.top_k,
+            }
+            response_tokens = []
+            print("\nAssistant: ", end="", flush=True)
+            for token_column, token_masks in engine.generate(conversation_tokens, **generate_kwargs):
+                token = token_column[0] # pop the batch dimension (num_samples=1)
+                response_tokens.append(token)
+                token_text = tokenizer.decode([token])
+                print(token_text, end="", flush=True)
+            print()
+            # we have to ensure that the assistant end token is the last token
+            # so even if generation ends due to max tokens, we have to append it to the end
+            if not response_tokens or response_tokens[-1] != assistant_end:
+                response_tokens.append(assistant_end)
+            conversation_tokens.extend(response_tokens)
 
-        # Kick off the assistant
-        conversation_tokens.append(assistant_start)
-        generate_kwargs = {
-            "num_samples": 1,
-            "max_tokens": args.max_tokens,
-            "temperature": 0.0 if selected_swift_manifest is not None else args.temperature,
-            "top_k": 0 if selected_swift_manifest is not None else args.top_k,
-        }
-        response_tokens = []
-        print("\nAssistant: ", end="", flush=True)
-        for token_column, token_masks in engine.generate(conversation_tokens, **generate_kwargs):
-            token = token_column[0] # pop the batch dimension (num_samples=1)
-            response_tokens.append(token)
-            token_text = tokenizer.decode([token])
-            print(token_text, end="", flush=True)
-        print()
-        # we have to ensure that the assistant end token is the last token
-        # so even if generation ends due to max tokens, we have to append it to the end
-        if response_tokens[-1] != assistant_end:
-            response_tokens.append(assistant_end)
-        conversation_tokens.extend(response_tokens)
+            if selected_swift_manifest is not None and getattr(engine, "last_request_telemetry", None):
+                telemetry = engine.last_request_telemetry
+                print(
+                    f"[swift telemetry] device={telemetry.get('device', '?')} "
+                    f"ttft={telemetry.get('ttft_ms', '?')}ms "
+                    f"decode={telemetry.get('decode_ms_per_token', '?')}ms/token "
+                    f"active={telemetry.get('active_memory_gb', '?')}GB "
+                    f"peak={telemetry.get('peak_memory_gb', '?')}GB "
+                    f"cache={telemetry.get('cache_memory_gb', '?')}GB "
+                    f"reuse={telemetry.get('persistent_worker_reuse_count', '?')} "
+                    f"tokens_decoded={telemetry.get('tokens_decoded', '?')}"
+                )
 
-        if selected_swift_manifest is not None and getattr(engine, "last_request_telemetry", None):
-            telemetry = engine.last_request_telemetry
-            print(
-                f"[swift telemetry] device={telemetry.get('device', '?')} "
-                f"ttft={telemetry.get('ttft_ms', '?')}ms "
-                f"decode={telemetry.get('decode_ms_per_token', '?')}ms/token "
-                f"active={telemetry.get('active_memory_gb', '?')}GB "
-                f"peak={telemetry.get('peak_memory_gb', '?')}GB "
-                f"cache={telemetry.get('cache_memory_gb', '?')}GB "
-                f"reuse={telemetry.get('persistent_worker_reuse_count', '?')} "
-                f"tokens_decoded={telemetry.get('tokens_decoded', '?')}"
-            )
-
-        # In the prompt mode, we only want a single response and exit
-        if args.prompt:
-            break
+            # In the prompt mode, we only want a single response and exit
+            if args.prompt:
+                break
+    finally:
+        if hasattr(engine, "close"):
+            engine.close()
 
 
 if __name__ == "__main__":

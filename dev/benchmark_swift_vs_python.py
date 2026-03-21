@@ -11,9 +11,11 @@ from pathlib import Path
 import mlx.core as mx
 import numpy as np
 
-REPO = Path(__file__).resolve().parent
-if not (REPO / "nanochat").exists():
-    REPO = Path(os.environ.get("REPO", "/Users/peternicholls/Dev/nanochatter"))
+# Resolve repository root: this file lives in dev/, so the repo root is its parent.
+REPO = Path(__file__).resolve().parents[1]
+# Allow an explicit override via the REPO environment variable, if provided.
+if "REPO" in os.environ:
+    REPO = Path(os.environ["REPO"])
 
 # ---------------------------------------------------------------------------
 # Python MLX model (minimal, no KV-cache)
@@ -22,6 +24,7 @@ sys.path.insert(0, str(REPO))
 from dev.mlx_gpt_prototype import MLXGPTPrototype, MLXGPTConfig
 from nanochat.tokenizer import get_tokenizer
 from nanochat.common import get_mlx_memory_stats
+from nanochat.swift_build import build_products_dir, ensure_stub_is_built, stub_binary_path
 
 
 def parse_args() -> argparse.Namespace:
@@ -111,9 +114,10 @@ def python_mlx_greedy_generate(model, prompt_tokens, max_new_tokens):
 # ---------------------------------------------------------------------------
 def swift_mlx_generate(manifest_path, prompt_tokens, max_new_tokens, device="gpu"):
     """Run the Swift stub and parse timing from its output."""
-    binary = REPO / "swift" / "Build" / "Products" / "Debug" / "nanochat-mlx-stub"
+    ensure_stub_is_built(REPO, rebuild=False)
+    binary = stub_binary_path(REPO)
     env = os.environ.copy()
-    env["DYLD_FRAMEWORK_PATH"] = str(REPO / "swift" / "Build" / "Products" / "Debug")
+    env["DYLD_FRAMEWORK_PATH"] = str(build_products_dir(REPO))
     token_arg = ",".join(str(t) for t in prompt_tokens)
     cmd = [
         str(binary), "--manifest", str(manifest_path),

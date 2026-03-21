@@ -307,7 +307,12 @@ if __name__ == "__main__":
     # init compute
     device_type = autodetect_device_type()
     ddp, ddp_rank, ddp_local_rank, ddp_world_size, device = compute_init(device_type)
-    synchronize = torch.cuda.synchronize if device.type == "cuda" else lambda: None
+    if device.type == "cuda":
+        synchronize = torch.cuda.synchronize
+    elif device.type == "mps":
+        synchronize = torch.mps.synchronize
+    else:
+        synchronize = lambda: None
     # load the model and tokenizer
     model, tokenizer, meta = load_model("base", device, phase="eval")
     bos_token_id = tokenizer.get_bos_token_id()
