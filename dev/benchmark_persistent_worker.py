@@ -22,7 +22,6 @@ sys.path.insert(0, str(REPO))
 
 from nanochat.tokenizer import get_tokenizer
 from nanochat.swift_stub_engine import SwiftStubEngine
-from nanochat.common import get_mlx_memory_stats
 
 # ---------------------------------------------------------------------------
 # Known baselines (d32, M2 Ultra)
@@ -112,7 +111,7 @@ def main() -> None:
                 "avg_decode_ms": avg_decode_ms,
             })
 
-    mem_after = get_mlx_memory_stats()
+    last_telem = engine.last_request_telemetry or {}
     engine.close()
 
     if not results:
@@ -138,9 +137,10 @@ def main() -> None:
     print(f"  avg decode     : {avg_decode:.2f} ms/token")
     print(f"  min decode     : {min_decode:.2f} ms/token")
     print(f"  max decode     : {max_decode:.2f} ms/token")
-    print(f"  MLX memory     : active={mem_after['active_gb']:.2f}GB  "
-          f"peak={mem_after['peak_gb']:.2f}GB  "
-          f"cache={mem_after['cache_gb']:.2f}GB")
+    print(f"  MLX memory (Swift worker)  : "
+          f"active={last_telem.get('active_memory_gb', 0.0):.2f}GB  "
+          f"peak={last_telem.get('peak_memory_gb', 0.0):.2f}GB  "
+          f"cache={last_telem.get('cache_memory_gb', 0.0):.2f}GB")
     print()
 
     if baseline:

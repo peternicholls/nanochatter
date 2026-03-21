@@ -13,10 +13,7 @@ from dev.mlx_input_batches import make_input_batch_provider
 from dev.mlx_logging import add_logging_args, write_summary_log
 from dev.mlx_gpt_prototype import MLXGPTPrototype, build_reference_config
 from nanochat.tokenizer import get_tokenizer
-
-
-def bytes_to_gb(num_bytes: int) -> float:
-    return num_bytes / (1024 ** 3)
+from nanochat.common import get_mlx_memory_stats
 
 
 def load_tokenizer_metadata(default_vocab_size: int) -> tuple[int, int | None, bool]:
@@ -25,13 +22,6 @@ def load_tokenizer_metadata(default_vocab_size: int) -> tuple[int, int | None, b
         return tokenizer.get_vocab_size(), tokenizer.get_bos_token_id(), True
     except Exception:
         return default_vocab_size, None, False
-
-def get_memory_stats() -> dict[str, float]:
-    return {
-        "active_gb": bytes_to_gb(mx.get_active_memory()),
-        "peak_gb": bytes_to_gb(mx.get_peak_memory()),
-        "cache_gb": bytes_to_gb(mx.get_cache_memory()),
-    }
 
 
 def main() -> None:
@@ -185,7 +175,7 @@ def main() -> None:
             "mean_eval_s": eval_elapsed / args.steps if args.steps > 0 else 0.0,
         },
         "optimizer": optimizer.metadata(),
-        "memory": get_memory_stats(),
+        "memory": get_mlx_memory_stats(),
         "tokenizer": {
             "shared_vocab_used": shared_tokenizer_used,
             "bos_token_id": bos_token_id,

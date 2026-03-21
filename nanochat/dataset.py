@@ -31,6 +31,7 @@ DATA_DIR = os.path.join(base_dir, "base_data_climbmix")
 
 def list_parquet_files(data_dir=None, warn_on_legacy=False):
     """ Looks into a data dir and returns full paths to all parquet files. """
+    caller_data_dir = data_dir
     data_dir = DATA_DIR if data_dir is None else data_dir
 
     # Legacy-supporting code due to the upgrade from FinewebEdu-100B to ClimbMix-400B
@@ -61,7 +62,11 @@ def list_parquet_files(data_dir=None, warn_on_legacy=False):
         raise FileNotFoundError(
             "No dataset directory found. Run `python -m nanochat.dataset -n 32` to download parquet shards "
             "and `python -m scripts.tok_train --max-chars=500000000` if the tokenizer is also missing. "
-            f"Checked: {DATA_DIR} and legacy fallback {os.path.join(base_dir, 'base_data')}"
+            + (
+                f"Checked: {caller_data_dir}"
+                if caller_data_dir is not None
+                else f"Checked: {DATA_DIR} and legacy fallback {os.path.join(base_dir, 'base_data')}"
+            )
         )
 
     parquet_files = sorted([

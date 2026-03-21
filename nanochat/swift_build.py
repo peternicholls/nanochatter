@@ -79,7 +79,7 @@ def ensure_stub_is_built(root: Path, *, rebuild: bool) -> None:
         "-destination",
         "platform=macOS",
         "-derivedDataPath",
-        ".derived",
+        str(root / "swift" / "Build"),
         "clean",
         "build",
     ]
