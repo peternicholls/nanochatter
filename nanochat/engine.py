@@ -17,7 +17,7 @@ import signal
 import warnings
 from contextlib import contextmanager
 from collections import deque
-from nanochat.common import compute_init, autodetect_device_type
+from nanochat.common import COMPUTE_DTYPE, compute_init, autodetect_device_type
 from nanochat.checkpoint_manager import load_model
 
 # -----------------------------------------------------------------------------
@@ -171,13 +171,7 @@ class Engine:
         """Same as generate, but does single prefill and then clones the KV cache."""
         assert isinstance(tokens, list) and isinstance(tokens[0], int), "expecting list of ints"
         device = self.model.get_device()
-        # NOTE: setting the dtype here and in this way is an ugly hack.
-        # Currently the repo assumes that cuda -> bfloat16 and everything else -> float32.
-        # We need to know the dtype here to call __init__ on KVCache and pre-allocate its tensors.
-        # As a quick hack, we're making generate() function inherit and know about this repo-wise assumption.
-        # I think there has to be a bigger refactor to deal with device/dtype tracking across the codebase.
-        # In particular, the KVCache should allocate its tensors lazily
-        dtype = torch.bfloat16 if device.type == "cuda" else torch.float32
+        dtype = COMPUTE_DTYPE
         rng = torch.Generator(device=device)
         rng.manual_seed(seed)
 
@@ -307,6 +301,12 @@ if __name__ == "__main__":
     # init compute
     device_type = autodetect_device_type()
     ddp, ddp_rank, ddp_local_rank, ddp_world_size, device = compute_init(device_type)
+    if device.type == "cuda":
+        synchronize = torch.cuda.synchronize
+    elif device.type == "mps":
+        synchronize = torch.mps.synchronize
+    else:
+        synchronize = lambda: None
     # load the model and tokenizer
     model, tokenizer, meta = load_model("base", device, phase="eval")
     bos_token_id = tokenizer.get_bos_token_id()
@@ -316,7 +316,7 @@ if __name__ == "__main__":
     prompt_tokens = tokenizer.encode("The chemical formula of water is", prepend=bos_token_id)
     # generate the reference sequence using the model.generate() function
     generated_tokens = []
-    torch.cuda.synchronize()
+    synchronize()
     t0 = time.time()
     stream = model.generate(prompt_tokens, **kwargs)
     for token in stream:
@@ -324,7 +324,7 @@ if __name__ == "__main__":
         chunk = tokenizer.decode([token])
         print(chunk, end="", flush=True)
     print()
-    torch.cuda.synchronize()
+    synchronize()
     t1 = time.time()
     print(f"Reference time: {t1 - t0:.2f}s")
     reference_ids = generated_tokens
@@ -332,7 +332,7 @@ if __name__ == "__main__":
     generated_tokens = []
     engine = Engine(model, tokenizer)
     stream = engine.generate(prompt_tokens, num_samples=1, **kwargs) # note: runs in fp32
-    torch.cuda.synchronize()
+    synchronize()
     t0 = time.time()
     for token_column, token_masks in stream:
         token = token_column[0] # only print out the first row
@@ -340,7 +340,7 @@ if __name__ == "__main__":
         chunk = tokenizer.decode([token])
         print(chunk, end="", flush=True)
     print()
-    torch.cuda.synchronize()
+    synchronize()
     t1 = time.time()
     print(f"Engine time: {t1 - t0:.2f}s")
     # compare the two sequences

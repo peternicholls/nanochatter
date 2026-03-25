@@ -10,6 +10,11 @@ import torch
 import torch.distributed as dist
 from filelock import FileLock
 
+try:
+    import mlx.core as _mlx
+except ImportError:
+    _mlx = None
+
 # The dtype used for compute (matmuls, activations). Master weights stay fp32 for optimizer precision.
 # Linear layers cast their weights to this dtype in forward, replacing torch.amp.autocast.
 # Override with NANOCHAT_DTYPE env var: "bfloat16", "float16", "float32"
@@ -29,6 +34,13 @@ def _detect_compute_dtype():
         return torch.float32, f"auto-detected: CUDA SM {capability[0]}{capability[1]} (pre-Ampere, bf16 not supported, using fp32)"
     return torch.float32, "auto-detected: no CUDA (CPU/MPS)"
 COMPUTE_DTYPE, COMPUTE_DTYPE_REASON = _detect_compute_dtype()
+
+def is_mps_available() -> bool:
+    backends = getattr(torch, "backends", None)
+    mps_backend = getattr(backends, "mps", None)
+    if mps_backend is not None and hasattr(mps_backend, "is_available"):
+        return bool(mps_backend.is_available())
+    return hasattr(torch, "mps")
 
 class ColoredFormatter(logging.Formatter):
     """Custom formatter that adds colors to log messages."""
@@ -57,6 +69,9 @@ class ColoredFormatter(logging.Formatter):
         return message
 
 def setup_default_logging():
+    root_logger = logging.getLogger()
+    if root_logger.handlers:
+        return
     handler = logging.StreamHandler()
     handler.setFormatter(ColoredFormatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
     logging.basicConfig(
@@ -64,8 +79,77 @@ def setup_default_logging():
         handlers=[handler]
     )
 
-setup_default_logging()
 logger = logging.getLogger(__name__)
+
+
+def bytes_to_gb(num_bytes: int | float) -> float:
+    return float(num_bytes) / (1024 ** 3)
+
+
+def get_mps_memory_stats(*, budget_frac: float = 0.9) -> dict[str, float | bool]:
+    budget_frac = min(max(float(budget_frac), 0.0), 1.0)
+    mps = getattr(torch, "mps", None)
+    required_methods = (
+        "current_allocated_memory",
+        "driver_allocated_memory",
+        "recommended_max_memory",
+    )
+    if not is_mps_available() or mps is None or not all(callable(getattr(mps, name, None)) for name in required_methods):
+        return {
+            "allocated_gb": 0.0,
+            "driver_gb": 0.0,
+            "recommended_gb": 0.0,
+            "driver_frac": 0.0,
+            "headroom_gb": 0.0,
+            "headroom_frac": 0.0,
+            "budget_frac": budget_frac,
+            "budget_limit_gb": 0.0,
+            "budget_headroom_gb": 0.0,
+            "exceeds_budget": False,
+        }
+
+    allocated = mps.current_allocated_memory()
+    driver = mps.driver_allocated_memory()
+    recommended = mps.recommended_max_memory()
+    recommended_gb = bytes_to_gb(recommended)
+    driver_gb = bytes_to_gb(driver)
+    budget_limit_gb = recommended_gb * budget_frac
+    driver_frac = (driver / recommended) if recommended else 0.0
+    headroom_frac = (1.0 - driver_frac) if recommended else 0.0
+    return {
+        "allocated_gb": bytes_to_gb(allocated),
+        "driver_gb": driver_gb,
+        "recommended_gb": recommended_gb,
+        "driver_frac": driver_frac,
+        "headroom_gb": recommended_gb - driver_gb,
+        "headroom_frac": headroom_frac,
+        "budget_frac": budget_frac,
+        "budget_limit_gb": budget_limit_gb,
+        "budget_headroom_gb": budget_limit_gb - driver_gb,
+        "exceeds_budget": bool(recommended and driver_gb > budget_limit_gb),
+    }
+
+def get_mlx_memory_stats(*, reset_peak: bool = False) -> dict[str, float]:
+    """Return MLX allocator telemetry (active, peak, cache memory in GB).
+
+    All values are zero if ``mlx.core`` is not importable (e.g. on CUDA-only
+    machines).  Pass ``reset_peak=True`` to call ``mx.reset_peak_memory()``
+    *after* sampling so the next call reflects the next interval's peak.
+    """
+    if _mlx is None:
+        return {"active_gb": 0.0, "peak_gb": 0.0, "cache_gb": 0.0}
+
+    active = _mlx.get_active_memory()
+    peak = _mlx.get_peak_memory()
+    cache = _mlx.get_cache_memory()
+    if reset_peak:
+        _mlx.reset_peak_memory()
+    return {
+        "active_gb": bytes_to_gb(active),
+        "peak_gb": bytes_to_gb(peak),
+        "cache_gb": bytes_to_gb(cache),
+    }
+
 
 def get_base_dir():
     # co-locate nanochat intermediates with other cached data in ~/.cache (by default)
@@ -119,6 +203,23 @@ def print0(s="",**kwargs):
     if ddp_rank == 0:
         print(s, **kwargs)
 
+def should_torch_compile(device_type: str) -> bool:
+    env = os.environ.get("NANOCHAT_COMPILE")
+    if env is not None:
+        return env.lower() in {"1", "true", "yes", "on"}
+    # torch.compile on MPS is still less predictable than eager mode for training.
+    return device_type != "mps"
+
+def maybe_torch_compile(model, device_type: str, *, dynamic: bool):
+    if not should_torch_compile(device_type):
+        print0("Skipping torch.compile on MPS by default. Set NANOCHAT_COMPILE=1 to force it.")
+        return model
+    try:
+        return torch.compile(model, dynamic=dynamic)
+    except Exception as exc:
+        print0(f"torch.compile failed on {device_type}: {exc}. Continuing without compilation.")
+        return model
+
 def print_banner():
     # Cool DOS Rebel font ASCII banner made with https://manytools.org/hacker-tools/ascii-banner/
     banner = """
@@ -163,7 +264,7 @@ def autodetect_device_type():
     # prefer to use CUDA if available, otherwise use MPS, otherwise fallback on CPU
     if torch.cuda.is_available():
         device_type = "cuda"
-    elif torch.backends.mps.is_available():
+    elif is_mps_available():
         device_type = "mps"
     else:
         device_type = "cpu"
@@ -173,11 +274,13 @@ def autodetect_device_type():
 def compute_init(device_type="cuda"): # cuda|cpu|mps
     """Basic initialization that we keep doing over and over, so make common."""
 
+    setup_default_logging()
+
     assert device_type in ["cuda", "mps", "cpu"], "Invalid device type atm"
     if device_type == "cuda":
         assert torch.cuda.is_available(), "Your PyTorch installation is not configured for CUDA but device_type is 'cuda'"
     if device_type == "mps":
-        assert torch.backends.mps.is_available(), "Your PyTorch installation is not configured for MPS but device_type is 'mps'"
+        assert is_mps_available(), "Your PyTorch installation is not configured for MPS but device_type is 'mps'"
 
     # Reproducibility
     # Note that we set the global seeds here, but most of the code uses explicit rng objects.

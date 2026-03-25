@@ -1,40 +1,85 @@
 ---
 name: read-arxiv-paper
-description: Use this skill when when asked to read an arxiv paper given an arxiv URL
+description: Use this skill when asked to read, summarize, or extract implementation ideas from an arXiv paper given an arXiv URL or ID.
 ---
 
-You will be given a URL of an arxiv paper, for example:
+This skill is agent-neutral and is intended to work for Claude, GitHub Copilot, or any coding agent that can read files and run shell commands.
 
-https://www.arxiv.org/abs/2601.07372
+You may be given an arXiv ID or an arXiv URL, for example:
 
-### Part 1: Normalize the URL
+- `2601.07372`
+- `https://arxiv.org/abs/2601.07372`
+- `https://arxiv.org/pdf/2601.07372`
+- `https://arxiv.org/src/2601.07372`
 
-The goal is to fetch the TeX Source of the paper (not the PDF!), the URL always looks like this:
+Follow this workflow.
 
-https://www.arxiv.org/src/2601.07372
+## 1. Normalize the identifier
 
-Notice the /src/ in the url. Once you have the URL:
+- Extract the canonical arXiv ID from the input.
+- Accept `abs`, `pdf`, or `src` URLs.
+- Preserve a version suffix such as `v2` if one is present.
+- Convert the input to the source URL form: `https://arxiv.org/src/{arxiv_id}`.
 
-### Part 2: Download the paper source
+The goal is to fetch the paper source, not the PDF.
 
-Fetch the url to a local .tar.gz file. A good location is `~/.cache/nanochat/knowledge/{arxiv_id}.tar.gz`.
+## 2. Download the paper source
 
-(If the file already exists, there is no need to re-download it).
+- Download the source archive to `~/.cache/nanochatter/knowledge/arxiv/{arxiv_id}.tar.gz`.
+- Reuse an existing archive if it is already present.
+- Do not download the PDF unless the user explicitly asks for it.
 
-### Part 3: Unpack the file in that folder
+## 3. Unpack the archive
 
-Unpack the contents into `~/.cache/nanochat/knowledge/{arxiv_id}` directory.
+- Extract the contents into `~/.cache/nanochatter/knowledge/arxiv/{arxiv_id}/`.
+- If the extraction directory already exists and looks complete, reuse it.
 
-### Part 4: Locate the entrypoint
+## 4. Locate the LaTeX entrypoint
 
-Every latex source usually has an entrypoint, such as `main.tex` or something like that.
+- Look for likely root files such as `main.tex`, `paper.tex`, `ms.tex`, or `root.tex`.
+- If there is no obvious root file, find the file that contains `\documentclass` and `\begin{document}`.
+- Use the `\input{}` and `\include{}` graph to confirm the real entrypoint.
+- Ignore generated artifacts when possible.
 
-### Part 5: Read the paper
+## 5. Read the paper source
 
-Once you've found the entrypoint, Read the contents and then recurse through all other relevant source files to read the paper.
+- Start from the entrypoint and recursively read the relevant source files.
+- Follow `\input{}`, `\include{}`, and bibliography references when they matter for understanding the paper.
+- Ignore binary assets unless they are needed to understand a figure or table.
+- Extract the important technical details:
+  - problem statement
+  - proposed method
+  - experimental setup
+  - results
+  - limitations
+  - implementation-relevant details
 
-#### Part 6: Report
+## 6. Connect the paper to the current repository
 
-Once you've read the paper, produce a summary of the paper into a markdown file at `./knowledge/summary_{tag}.md`. Notice that 1) use the local knowledge directory here (it's easier for me to open and reference here), not in `~/.cache`, and 2) generate some reasonable `tag` like e.g. `conditional_memory` or whatever seems appropriate given the paper. Probably make sure that the tag doesn't exist yet so you're not overwriting files.
+- Read only the relevant parts of the current repository needed to relate the paper to the codebase.
+- In this repository, focus on concrete implications for `nanochatter`.
+- Prefer actionable takeaways over generic commentary.
+- Typical areas of interest include memory, architecture, prompting, evaluation, tooling, native acceleration, and developer workflow.
 
-As for the summary itself, remember that you're processing this paper within the context of the nanochat repository, so most often we we will be interested in how to apply the paper and its lessons to the nanochat project. Therefore, you should feel free to "remind yourself" of the related nanochat code by reading the relevant parts, and then explicitly make the connection of how this paper might relate to nanochat or what are things we might be inspired about or try.
+## 7. Write the report
+
+- Create `./knowledge` if it does not already exist.
+- Write the summary to `./knowledge/summary_{tag}.md`.
+- Choose a short, descriptive, unique `{tag}` so you do not overwrite an existing summary.
+- The summary should include:
+  - paper title
+  - arXiv ID
+  - source URL
+  - one-paragraph summary
+  - key ideas
+  - implementation notes
+  - relevance to `nanochatter`
+  - experiments or follow-up ideas to try
+  - open questions or risks
+  - repository files or modules consulted
+
+## 8. Report back in chat
+
+- Tell the user where the summary file was written.
+- Provide a concise summary of the paper and the most relevant next steps for the repository.
+- If the source archive cannot be fetched or unpacked, say exactly what failed and stop instead of guessing.

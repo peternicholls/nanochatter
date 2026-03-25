@@ -22,7 +22,7 @@ Presently, the main focus of development is on tuning the pretraining stage, whi
 
 The primary metric we care about is "time to GPT-2" - the wall clock time needed to outperform the GPT-2 (1.6B) CORE metric on an 8XH100 GPU node. The GPT-2 CORE score is 0.256525. In 2019, the training of GPT-2 cost approximately $43,000 so it is incredible that due to many advances over 7 years across the stack, we can now do so much faster and for well below $100 (e.g. at the current ~$3/GPU/hr, an 8XH100 node is ~$24/hr, so 2 hours is ~$48).
 
-See [dev/LEADERBOARD.md](dev/LEADERBOARD.md) for more docs on how to interpret and contribute to the leaderboard.
+See [docs/LEADERBOARD.md](docs/LEADERBOARD.md) for more docs on how to interpret and contribute to the leaderboard.
 
 ## Getting started
 
@@ -34,10 +34,10 @@ The most fun you can have is to train your own GPT-2 and talk to it. The entire 
 bash runs/speedrun.sh
 ```
 
-You may wish to do so in a screen session as this will take ~3 hours to run. Once it's done, you can talk to it via the ChatGPT-like web UI. Make sure again that your local uv virtual environment is active (run `source .venv/bin/activate`), and serve it:
+You may wish to do so in a screen session as this will take ~3 hours to run. Once it's done, you can talk to it via the ChatGPT-like web UI. Serve it from the repo root with the project environment:
 
 ```bash
-python -m scripts.chat_web
+uv run python -m scripts.chat_web
 ```
 
 And then visit the URL shown. Make sure to access it correctly, e.g. on Lambda use the public IP of the node you're on, followed by the port, so for example [http://209.20.xxx.xxx:8000/](http://209.20.xxx.xxx:8000/), etc. Then talk to your LLM as you'd normally talk to ChatGPT! Get it to write stories or poems. Ask it to tell you who you are to see a hallucination. Ask it why the sky is blue. Or why it's green. The speedrun is a 4e19 FLOPs capability model so it's a bit like talking to a kindergartener :).
@@ -82,6 +82,27 @@ The important thing to note is that nanochat is written and configured around on
 ## Running on CPU / MPS
 
 The script [runs/runcpu.sh](runs/runcpu.sh) shows a very simple example of running on CPU or Apple Silicon. It dramatically shrinks the LLM that is being trained to make things fit into a reasonable time interval of a few ten minutes of training. You will not get strong results in this way.
+
+For dependency install, use the PyTorch wheel that matches your machine:
+
+```bash
+uv sync --extra gpu    # CUDA Linux
+uv sync --extra cpu    # Linux CPU-only
+uv sync --extra macos  # Apple Silicon / MPS
+```
+
+Validate the installed environment and run the canonical regression command from repo root:
+
+```bash
+uv run python -c "import nanochat"
+uv run python -m pytest -q
+```
+
+On Apple Silicon, nanochat will autodetect `mps` and run in eager mode by default. This skips `torch.compile`, which is still less predictable on MPS for training. If you want to try it anyway, set `NANOCHAT_COMPILE=1`.
+
+For larger Apple Silicon machines such as M2 Ultra, use [runs/runm2ultra.sh](runs/runm2ultra.sh) and [dev/benchmark_mps_scaling.py](dev/benchmark_mps_scaling.py) to establish a benchmark-driven scaling ladder before choosing a deeper training run.
+
+On the M2 Ultra machine used for development, a synthetic 1024-token train-step probe reached a stable default tier around a 2.8B-parameter model (`depth=32`, `device-batch-size=2`) on a single MPS device. See [docs/M2_ULTRA_SCALING.md](docs/M2_ULTRA_SCALING.md) for the measured ladder and [runs/runm2ultra_base32.sh](runs/runm2ultra_base32.sh) for the recommended starter run. The M2 Ultra scripts also auto-bootstrap missing dataset shards and tokenizer artifacts before benchmarking or training.
 
 ## Precision / dtype
 

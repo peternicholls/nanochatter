@@ -13,42 +13,88 @@ import psutil
 import torch
 
 def run_command(cmd):
-    """Run a shell command and return output, or None if it fails."""
+    """Run a shell command and return structured diagnostics."""
     try:
         result = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=5)
-        # Return stdout if we got output (even if some files in xargs failed)
-        if result.stdout.strip():
-            return result.stdout.strip()
-        if result.returncode == 0:
-            return ""
-        return None
-    except:
-        return None
+        return {
+            "cmd": cmd,
+            "ok": result.returncode == 0,
+            "stdout": result.stdout.strip(),
+            "stderr": result.stderr.strip(),
+            "returncode": result.returncode,
+            "error": None,
+        }
+    except Exception as exc:
+        return {
+            "cmd": cmd,
+            "ok": False,
+            "stdout": "",
+            "stderr": "",
+            "returncode": None,
+            "error": str(exc),
+        }
+
+def command_output(result):
+    if result["stdout"]:
+        return result["stdout"]
+    if result["ok"]:
+        return ""
+    return None
+
+def command_failure_message(result):
+    details = []
+    if result["returncode"] is not None:
+        details.append(f"exit={result['returncode']}")
+    if result["stderr"]:
+        details.append(f"stderr={result['stderr']}")
+    if result["error"]:
+        details.append(f"error={result['error']}")
+    suffix = "; ".join(details) if details else "no additional details"
+    return f"Command failed: {result['cmd']} ({suffix})"
 
 def get_git_info():
     """Get current git commit, branch, and dirty status."""
-    info = {}
-    info['commit'] = run_command("git rev-parse --short HEAD") or "unknown"
-    info['branch'] = run_command("git rev-parse --abbrev-ref HEAD") or "unknown"
+    info = {"diagnostics": []}
+    commit_result = run_command("git rev-parse --short HEAD")
+    branch_result = run_command("git rev-parse --abbrev-ref HEAD")
+    status_result = run_command("git status --porcelain")
+    message_result = run_command("git log -1 --pretty=%B")
+
+    info['commit'] = command_output(commit_result) or "unknown"
+    info['branch'] = command_output(branch_result) or "unknown"
 
     # Check if repo is dirty (has uncommitted changes)
-    status = run_command("git status --porcelain")
+    status = command_output(status_result)
     info['dirty'] = bool(status) if status is not None else False
 
     # Get commit message
-    info['message'] = run_command("git log -1 --pretty=%B") or ""
+    info['message'] = command_output(message_result) or ""
     info['message'] = info['message'].split('\n')[0][:80]  # First line, truncated
+
+    for result in (commit_result, branch_result, status_result, message_result):
+        if not result["ok"]:
+            info["diagnostics"].append(command_failure_message(result))
 
     return info
 
 def get_gpu_info():
     """Get GPU information."""
     if not torch.cuda.is_available():
+        if hasattr(torch.backends, "mps") and torch.backends.mps.is_available():
+            chip_name = platform.processor() or "Apple Silicon"
+            return {
+                "available": True,
+                "backend": "mps",
+                "count": 1,
+                "names": [chip_name],
+                "memory_gb": [psutil.virtual_memory().total / (1024**3)],
+            }
         return {"available": False}
 
     num_devices = torch.cuda.device_count()
     info = {
         "available": True,
+        "backend": "cuda",
         "count": num_devices,
         "names": [],
         "memory_gb": []
@@ -125,6 +171,7 @@ def generate_header():
     gpu_info = get_gpu_info()
     sys_info = get_system_info()
     cost_info = estimate_cost(gpu_info)
+    diagnostics = list(git_info.pop("diagnostics", []))
 
     header = f"""# nanochat training report
 
@@ -146,9 +193,14 @@ Generated: {timestamp}
     if gpu_info.get("available"):
         gpu_names = ", ".join(set(gpu_info["names"]))
         total_vram = sum(gpu_info["memory_gb"])
-        header += f"""- GPUs: {gpu_info['count']}x {gpu_names}
+        if gpu_info.get("backend") == "cuda":
+            header += f"""- GPUs: {gpu_info['count']}x {gpu_names}
 - GPU Memory: {total_vram:.1f} GB total
 - CUDA Version: {gpu_info['cuda_version']}
+"""
+        else:
+            header += f"""- Accelerator: {gpu_names} via MPS
+- Unified Memory: {total_vram:.1f} GB total
 """
     else:
         header += "- GPUs: None available\n"
@@ -166,19 +218,25 @@ Generated: {timestamp}
     # bloat metrics: count lines/chars in git-tracked source files only
     extensions = ['py', 'md', 'rs', 'html', 'toml', 'sh']
     git_patterns = ' '.join(f"'*.{ext}'" for ext in extensions)
-    files_output = run_command(f"git ls-files -- {git_patterns}")
+    files_result = run_command(f"git ls-files -- {git_patterns}")
+    files_output = command_output(files_result)
     file_list = [f for f in (files_output or '').split('\n') if f]
     num_files = len(file_list)
     num_lines = 0
     num_chars = 0
+    if not files_result["ok"]:
+        diagnostics.append(command_failure_message(files_result))
     if num_files > 0:
-        wc_output = run_command(f"git ls-files -- {git_patterns} | xargs wc -lc 2>/dev/null")
+        wc_result = run_command(f"git ls-files -- {git_patterns} | xargs wc -lc 2>/dev/null")
+        wc_output = command_output(wc_result)
         if wc_output:
             total_line = wc_output.strip().split('\n')[-1]
             parts = total_line.split()
             if len(parts) >= 2:
                 num_lines = int(parts[0])
                 num_chars = int(parts[1])
+        elif not wc_result["ok"]:
+            diagnostics.append(command_failure_message(wc_result))
     num_tokens = num_chars // 4  # assume approximately 4 chars per token
 
     # count dependencies via uv.lock
@@ -196,6 +254,11 @@ Generated: {timestamp}
 - Dependencies (uv.lock lines): {uv_lock_lines:,}
 
 """
+    if diagnostics:
+        header += "### Diagnostics\n"
+        for diagnostic in diagnostics:
+            header += f"- {diagnostic}\n"
+        header += "\n"
     return header
 
 # -----------------------------------------------------------------------------
@@ -284,6 +347,7 @@ class Report:
         final_metrics = {} # the most important final metrics we'll add as table at the end
         start_time = None
         end_time = None
+        diagnostics = []
         with open(report_file, "w", encoding="utf-8") as out_file:
             # write the header first
             header_file = os.path.join(report_dir, "header.md")
@@ -292,6 +356,8 @@ class Report:
                     header_content = f.read()
                     out_file.write(header_content)
                     start_time = extract_timestamp(header_content, "Run started:")
+                    if start_time is None:
+                        diagnostics.append("Failed to parse start timestamp from header.md")
                     # capture bloat data for summary later (the stuff after Bloat header and until \n\n)
                     bloat_data = re.search(r"### Bloat\n(.*?)\n\n", header_content, re.DOTALL)
                     bloat_data = bloat_data.group(1) if bloat_data else ""
@@ -299,11 +365,13 @@ class Report:
                 start_time = None # will cause us to not write the total wall clock time
                 bloat_data = "[bloat data missing]"
                 print(f"Warning: {header_file} does not exist. Did you forget to run `nanochat reset`?")
+                diagnostics.append("header.md is missing; report summary is incomplete")
             # process all the individual sections
             for file_name in EXPECTED_FILES:
                 section_file = os.path.join(report_dir, file_name)
                 if not os.path.exists(section_file):
                     print(f"Warning: {section_file} does not exist, skipping")
+                    diagnostics.append(f"Missing report section: {file_name}")
                     continue
                 with open(section_file, "r", encoding="utf-8") as in_file:
                     section = in_file.read()
@@ -311,6 +379,8 @@ class Report:
                 if "rl" not in file_name:
                     # Skip RL sections for end_time calculation because RL is experimental
                     end_time = extract_timestamp(section, "timestamp:")
+                    if end_time is None:
+                        diagnostics.append(f"Failed to parse timestamp from {file_name}")
                 # extract the most important metrics from the sections
                 if file_name == "base-model-evaluation.md":
                     final_metrics["base"] = extract(section, "CORE")
@@ -320,6 +390,11 @@ class Report:
                     final_metrics["rl"] = extract(section, "GSM8K") # RL only evals GSM8K
                 # append this section of the report
                 out_file.write(section)
+                out_file.write("\n")
+            if diagnostics:
+                out_file.write("## Diagnostics\n\n")
+                for diagnostic in diagnostics:
+                    out_file.write(f"- {diagnostic}\n")
                 out_file.write("\n")
             # add the final metrics table
             out_file.write("## Summary\n\n")
