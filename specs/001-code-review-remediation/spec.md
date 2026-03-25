@@ -10,6 +10,7 @@
 ### Session 2026-03-21
 
 - Q: Should the chat request interface support `system` role messages during this remediation, or reject them? → A: Reject `system` for now; only `user` and `assistant` are supported roles in this remediation.
+- Q: What exact contributor workflow should this remediation standardize? → A: Use `uv sync --extra <platform>` as the setup/install workflow and `uv run python -m pytest -q` as the canonical automated regression command.
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -19,13 +20,13 @@ As a contributor, I need a predictable project setup and test entrypoint so that
 
 **Why this priority**: The audit identified the development workflow itself as unreliable. Until package import and the standard test path work consistently, every other fix remains harder to validate and contributors cannot trust failures.
 
-**Independent Test**: In a clean project environment, install the repository using the documented workflow, run the canonical test command, and confirm package imports succeed without relying on manual environment path overrides.
+**Independent Test**: From repo root on a supported platform, run `uv sync --extra <platform>`, confirm `uv run python -c "import nanochat"` succeeds, and run `uv run python -m pytest -q` without relying on manual environment path overrides.
 
 **Acceptance Scenarios**:
 
-1. **Given** a contributor has created a fresh supported project environment, **When** they follow the documented installation workflow, **Then** the `nanochat` package is importable from that environment.
-2. **Given** a contributor is using the project virtual environment, **When** they run the canonical automated test command, **Then** test collection starts without package import failures caused by repository path assumptions.
-3. **Given** the repository documents one standard test workflow, **When** contributors follow that workflow, **Then** they receive the same expected baseline result locally and in automation.
+1. **Given** a contributor is at repo root on a supported platform, **When** they run `uv sync --extra <platform>`, **Then** `uv run python -c "import nanochat"` succeeds without manual path overrides.
+2. **Given** a contributor follows the documented setup workflow, **When** they run `uv run python -m pytest -q`, **Then** test collection starts without package import failures caused by repository path assumptions.
+3. **Given** the repository documents one standard test workflow, **When** contributors and automation follow that workflow, **Then** they receive the same expected baseline result.
 
 ---
 
@@ -35,7 +36,7 @@ As a maintainer, I need the default regression suite to pass and the reviewed in
 
 **Why this priority**: The audit found active failures and contract mismatches in accelerator telemetry, native build behavior, chat message roles, and runtime precision handling. These are direct correctness issues that undermine confidence in the current branch.
 
-**Independent Test**: Run the standard automated test suite and targeted contract checks for accelerator telemetry, native build freshness, chat request validation, and runtime precision behavior; the suite should finish green and reflect the documented contracts.
+**Independent Test**: Run `uv run python -m pytest -q` and the targeted contract checks for accelerator telemetry, native build freshness, chat request validation, and runtime precision behavior; the suite should finish green and reflect the documented contracts.
 
 **Acceptance Scenarios**:
 
@@ -53,7 +54,7 @@ As a maintainer, I need runtime dependencies and import behavior to match actual
 
 **Why this priority**: The audit shows that direct dependencies are incompletely declared and that runtime code currently inherits unnecessary import-time coupling. This raises setup costs and creates failures that are unrelated to the task a contributor is trying to perform.
 
-**Independent Test**: Inspect the declared dependency set, exercise representative runtime-only paths, and confirm those paths avoid unrelated training-only requirements while documented runtime initialization happens predictably.
+**Independent Test**: Inspect the declared dependency set, exercise representative runtime and evaluation paths, and confirm those paths avoid unrelated training-only requirements while documented runtime initialization happens predictably.
 
 **Acceptance Scenarios**:
 
@@ -64,7 +65,7 @@ As a maintainer, I need runtime dependencies and import behavior to match actual
 
 ### Edge Cases
 
-- A contributor uses the project virtual environment exactly as documented, but the package has not been installed into that environment yet.
+- A contributor uses the documented `uv` workflow on a supported platform extra, but the package is still not importable from the resulting environment.
 - Memory telemetry is queried on systems where the accelerator backend is absent, partially stubbed, or exposes only a subset of expected attributes.
 - The native helper executable exists but a required companion output is missing, or source inputs are newer than only one output artifact.
 - A chat request includes `system` or another semantically plausible role that is not supported by the current conversation format.
@@ -75,18 +76,19 @@ As a maintainer, I need runtime dependencies and import behavior to match actual
 
 ### Functional Requirements
 
-- **FR-001**: The project MUST provide one documented setup path that results in the `nanochat` package being importable from the supported project environment.
-- **FR-002**: The project MUST provide one documented canonical automated test command for contributors and automation.
+- **FR-001**: The project MUST document `uv sync --extra <platform>` as the supported setup/install workflow that results in the `nanochat` package being importable from the repo-local project environment.
+- **FR-002**: The project MUST provide one documented canonical automated test command for contributors and automation: `uv run python -m pytest -q`.
 - **FR-003**: The canonical automated test workflow MUST collect tests without requiring contributors to apply manual environment path overrides.
 - **FR-004**: The remediation baseline MUST eliminate the currently known test failures identified in the 2026-03-21 code review scope.
 - **FR-005**: Runtime memory telemetry MUST handle unavailable or partially stubbed accelerator backends without raising unexpected errors.
 - **FR-006**: Native helper build freshness evaluation MUST use a single consistent contract for input locations, output locations, and rebuild decisions.
 - **FR-007**: The chat request interface MUST support only `user` and `assistant` roles for this remediation, and its validation errors MUST match that supported set exactly.
 - **FR-008**: Inference cache allocation MUST derive precision from the repository’s authoritative runtime compute precision policy.
-- **FR-009**: Directly imported runtime dependencies MUST be declared explicitly in the project dependency metadata.
-- **FR-010**: Runtime and inference-oriented code paths MUST avoid failing solely because training-only tokenization tooling is unavailable, unless the requested operation explicitly requires that tooling.
+- **FR-009**: Directly imported runtime and evaluation dependencies MUST be declared explicitly in the project dependency metadata.
+- **FR-010**: Runtime, inference-oriented, and evaluation code paths MUST avoid failing solely because training-only tokenization tooling is unavailable, unless the requested operation explicitly requires that tooling.
 - **FR-011**: Runtime initialization side effects that affect logging or execution policy MUST be explicit, predictable, and testable.
 - **FR-012**: Operational reporting helpers MUST expose command and parsing failures clearly enough for maintainers to diagnose degraded reports.
+- **FR-013**: The repository MUST provide an automation smoke check that runs the same canonical setup and regression workflow used by contributors.
 
 ### Key Entities *(include if feature involves data)*
 
@@ -102,6 +104,7 @@ As a maintainer, I need runtime dependencies and import behavior to match actual
 - This feature is limited to the issues raised in the 2026-03-21 code review and does not attempt unrelated architectural refactors.
 - The remediation should prefer clarifying and enforcing current supported behavior over expanding product scope unless expansion is required to remove an inconsistency.
 - One canonical contributor workflow is preferable to multiple partially supported test entrypoints.
+- The canonical contributor workflow is `uv`-based and should remain runnable from repo root without requiring manual environment activation steps in docs.
 - Unsupported chat roles are rejected rather than added during this remediation so that the fix remains a consistency repair instead of a conversation-model expansion.
 - Success is measured by restored contributor trust, a clean regression signal, and reduced setup/runtime surprise rather than by adding new end-user capabilities.
 
@@ -109,9 +112,10 @@ As a maintainer, I need runtime dependencies and import behavior to match actual
 
 ### Measurable Outcomes
 
-- **SC-001**: 100% of contributors following the documented setup path can import `nanochat` from the supported project environment without adding manual path overrides.
-- **SC-002**: The documented canonical automated test command completes with zero known remediation-scope failures in the supported default environment.
+- **SC-001**: In fresh-environment validation, `uv sync --extra <platform>` followed by `uv run python -c "import nanochat"` succeeds for every supported platform profile explicitly covered by this feature.
+- **SC-002**: The documented canonical automated test command `uv run python -m pytest -q` completes with zero known remediation-scope failures in the supported default environment.
 - **SC-003**: 100% of reviewed contract checks for accelerator telemetry, native helper freshness, chat role validation, and runtime precision selection behave consistently with the documented feature behavior, including rejection of unsupported roles such as `system`.
 - **SC-004**: A fresh environment created from declared project dependencies can execute the supported runtime and evaluation paths covered by this feature without failure caused by missing direct dependencies.
 - **SC-005**: Runtime-only paths no longer require contributors to install training-only tokenization tooling unless they explicitly invoke a training-oriented workflow.
 - **SC-006**: Maintainers can identify degraded report-generation behavior from surfaced error output in every command or parsing failure scenario covered by this feature.
+- **SC-007**: One automation smoke check runs the same canonical `uv` setup and regression workflow that the contributor docs prescribe.

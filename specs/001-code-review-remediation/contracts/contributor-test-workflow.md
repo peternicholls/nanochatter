@@ -7,8 +7,9 @@ Define the supported contributor-facing workflow for installation, importability
 ## Supported Workflow
 
 1. Create or sync the supported project environment for the current platform.
-2. Install the project through the documented package workflow so `nanochat` is importable from that environment.
-3. Run the canonical automated regression command: `python -m pytest -q`.
+2. Run `uv sync --extra <platform>` from repo root so `nanochat` is importable from that environment.
+3. Verify importability with `uv run python -c "import nanochat"`.
+4. Run the canonical automated regression command: `uv run python -m pytest -q`.
 
 ## Guarantees
 
@@ -24,5 +25,5 @@ Define the supported contributor-facing workflow for installation, importability
 ## Verification Expectations
 
 1. A fresh environment following the documented setup can import `nanochat`.
-2. `python -m pytest -q` executes as the repository’s standard automated test command.
+2. `uv run python -m pytest -q` executes as the repository’s standard automated test command.
 3. Packaging metadata and documentation stay aligned with the supported workflow.

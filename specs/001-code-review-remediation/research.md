@@ -1,9 +1,9 @@
 # Research: Code Review Remediation Baseline
 
-## Decision 1: Add an explicit Python build backend and standardize one canonical test invocation
+## Decision 1: Add an explicit Python build backend and standardize one canonical `uv` workflow
 
-- Decision: Add an explicit `[build-system]` section for the existing Python package and standardize the documented automated test command as `python -m pytest -q` within the supported project environment.
-- Rationale: The review evidence shows the project package is not installed into the virtual environment today, which breaks direct pytest entrypoints. An explicit build backend is the minimal standards-compliant way to make the existing package installable. Using `python -m pytest -q` as the canonical command matches the one invocation that already works reliably and is stable across environments.
+- Decision: Add an explicit `[build-system]` section for the existing Python package, standardize `uv sync --extra <platform>` as the documented setup/install workflow, and standardize the automated regression command as `uv run python -m pytest -q`.
+- Rationale: The review evidence shows the project package is not installed into the virtual environment today, which breaks direct pytest entrypoints. An explicit build backend is the minimal standards-compliant way to make the existing package installable. Using the `uv` sync-and-run path gives contributors and automation the same deterministic repo-root workflow without depending on prior environment activation.
 - Alternatives considered:
   - Rely on repository-root path injection: rejected because it preserves a brittle, undocumented import assumption.
   - Standardize on the bare `pytest` executable: rejected because that path is the one currently failing and is less robust during the transition.
@@ -49,7 +49,7 @@
   - Keep training-only tools as always-on runtime dependencies: rejected because it preserves unnecessary setup burden and import failures.
   - Split tokenizer code into a new package immediately: rejected because that is a broader refactor than this remediation requires.
 
-## Decision 7: Declare all directly imported runtime dependencies explicitly in project metadata
+## Decision 7: Declare all directly imported runtime and evaluation dependencies explicitly in project metadata
 
 - Decision: Add explicit dependency metadata for every package imported directly by supported runtime and evaluation paths.
 - Rationale: Deterministic environment creation is part of the contributor workflow requirement. Direct imports should not rely on accidental transitive availability.

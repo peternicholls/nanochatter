@@ -10,9 +10,9 @@ This feature does not introduce persisted application data. Its design model is 
 
 - Purpose: Represents the supported path for setting up the project, installing the package into the chosen environment, and running the canonical regression command.
 - Fields:
-  - environment_manager: named setup mechanism used by contributors
-  - install_step: documented action that makes `nanochat` importable
-  - canonical_test_command: single supported automated test invocation
+  - environment_manager: `uv`
+  - install_step: `uv sync --extra <platform>` from repo root
+  - canonical_test_command: `uv run python -m pytest -q`
   - expected_import_state: whether package import succeeds without path overrides
 - Relationships:
   - Validates Regression Baseline
@@ -20,6 +20,7 @@ This feature does not introduce persisted application data. Its design model is 
 - Validation rules:
   - Must define exactly one canonical test command for this feature
   - Must not require manual environment path overrides
+  - Must be identical for contributor docs and automation smoke coverage
 
 ### Regression Baseline
 
@@ -101,6 +102,7 @@ This feature does not introduce persisted application data. Its design model is 
   - Constrains Runtime Import Boundary
 - Validation rules:
   - Every direct runtime import must be declared
+  - Every direct evaluation import must be declared
   - Training-only dependencies must not be required by runtime-only flows
 
 ### Runtime Import Boundary
