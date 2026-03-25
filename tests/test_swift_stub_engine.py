@@ -255,7 +255,7 @@ def test_ensure_stub_is_built_forces_clean_build_when_sources_are_newer(tmp_path
                 "-destination",
                 "platform=macOS",
                 "-derivedDataPath",
-                ".derived",
+                str(tmp_path / "swift" / "Build"),
                 "clean",
                 "build",
             ],

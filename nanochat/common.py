@@ -36,7 +36,11 @@ def _detect_compute_dtype():
 COMPUTE_DTYPE, COMPUTE_DTYPE_REASON = _detect_compute_dtype()
 
 def is_mps_available() -> bool:
-    return hasattr(torch.backends, "mps") and torch.backends.mps.is_available()
+    backends = getattr(torch, "backends", None)
+    mps_backend = getattr(backends, "mps", None)
+    if mps_backend is not None and hasattr(mps_backend, "is_available"):
+        return bool(mps_backend.is_available())
+    return hasattr(torch, "mps")
 
 class ColoredFormatter(logging.Formatter):
     """Custom formatter that adds colors to log messages."""
@@ -65,6 +69,9 @@ class ColoredFormatter(logging.Formatter):
         return message
 
 def setup_default_logging():
+    root_logger = logging.getLogger()
+    if root_logger.handlers:
+        return
     handler = logging.StreamHandler()
     handler.setFormatter(ColoredFormatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
     logging.basicConfig(
@@ -72,7 +79,6 @@ def setup_default_logging():
         handlers=[handler]
     )
 
-setup_default_logging()
 logger = logging.getLogger(__name__)
 
 
@@ -82,7 +88,13 @@ def bytes_to_gb(num_bytes: int | float) -> float:
 
 def get_mps_memory_stats(*, budget_frac: float = 0.9) -> dict[str, float | bool]:
     budget_frac = min(max(float(budget_frac), 0.0), 1.0)
-    if not is_mps_available():
+    mps = getattr(torch, "mps", None)
+    required_methods = (
+        "current_allocated_memory",
+        "driver_allocated_memory",
+        "recommended_max_memory",
+    )
+    if not is_mps_available() or mps is None or not all(callable(getattr(mps, name, None)) for name in required_methods):
         return {
             "allocated_gb": 0.0,
             "driver_gb": 0.0,
@@ -96,9 +108,9 @@ def get_mps_memory_stats(*, budget_frac: float = 0.9) -> dict[str, float | bool]
             "exceeds_budget": False,
         }
 
-    allocated = torch.mps.current_allocated_memory()
-    driver = torch.mps.driver_allocated_memory()
-    recommended = torch.mps.recommended_max_memory()
+    allocated = mps.current_allocated_memory()
+    driver = mps.driver_allocated_memory()
+    recommended = mps.recommended_max_memory()
     recommended_gb = bytes_to_gb(recommended)
     driver_gb = bytes_to_gb(driver)
     budget_limit_gb = recommended_gb * budget_frac
@@ -261,6 +273,8 @@ def autodetect_device_type():
 
 def compute_init(device_type="cuda"): # cuda|cpu|mps
     """Basic initialization that we keep doing over and over, so make common."""
+
+    setup_default_logging()
 
     assert device_type in ["cuda", "mps", "cpu"], "Invalid device type atm"
     if device_type == "cuda":

@@ -17,10 +17,10 @@
 
 **Purpose**: Establish the shared scaffolding for remediation-focused regression work.
 
-- [ ] T001 Add remediation packaging baseline in /Users/peternicholls/Dev/nanochatter/pyproject.toml
-- [ ] T002 [P] Add shared remediation fixtures in /Users/peternicholls/Dev/nanochatter/tests/conftest.py
-- [ ] T003 [P] Create remediation regression harness files in /Users/peternicholls/Dev/nanochatter/tests/test_packaging_workflow.py, /Users/peternicholls/Dev/nanochatter/tests/test_chat_web_validation.py, /Users/peternicholls/Dev/nanochatter/tests/test_runtime_boundaries.py, and /Users/peternicholls/Dev/nanochatter/tests/test_report.py
-- [ ] T004 [P] Create contributor automation smoke workflow scaffold in /Users/peternicholls/Dev/nanochatter/.github/workflows/remediation-smoke.yml
+- [x] T001 Add remediation packaging baseline in /Users/peternicholls/Dev/nanochatter/pyproject.toml
+- [x] T002 [P] Add shared remediation fixtures in /Users/peternicholls/Dev/nanochatter/tests/conftest.py
+- [x] T003 [P] Create remediation regression harness files in /Users/peternicholls/Dev/nanochatter/tests/test_packaging_workflow.py, /Users/peternicholls/Dev/nanochatter/tests/test_chat_web_validation.py, /Users/peternicholls/Dev/nanochatter/tests/test_runtime_boundaries.py, and /Users/peternicholls/Dev/nanochatter/tests/test_report.py
+- [x] T004 [P] Create contributor automation smoke workflow scaffold in /Users/peternicholls/Dev/nanochatter/.github/workflows/remediation-smoke.yml
 
 ---
 
@@ -30,9 +30,9 @@
 
 **⚠️ CRITICAL**: No user story work should begin until this phase is complete.
 
-- [ ] T005 Define canonical importability and test-command contract coverage in /Users/peternicholls/Dev/nanochatter/tests/test_packaging_workflow.py
-- [ ] T006 [P] Define chat request role contract coverage in /Users/peternicholls/Dev/nanochatter/tests/test_chat_web_validation.py
-- [ ] T007 [P] Define runtime-boundary, evaluation-boundary, and reporting contract coverage in /Users/peternicholls/Dev/nanochatter/tests/test_runtime_boundaries.py and /Users/peternicholls/Dev/nanochatter/tests/test_report.py
+- [x] T005 Define canonical importability and test-command contract coverage in /Users/peternicholls/Dev/nanochatter/tests/test_packaging_workflow.py
+- [x] T006 [P] Define chat request role contract coverage in /Users/peternicholls/Dev/nanochatter/tests/test_chat_web_validation.py
+- [x] T007 [P] Define runtime-boundary, evaluation-boundary, and reporting contract coverage in /Users/peternicholls/Dev/nanochatter/tests/test_runtime_boundaries.py and /Users/peternicholls/Dev/nanochatter/tests/test_report.py
 
 **Checkpoint**: Shared regression harness is ready; user story work can proceed.
 
@@ -46,14 +46,14 @@
 
 ### Tests for User Story 1
 
-- [ ] T008 [US1] Add contributor workflow assertions in /Users/peternicholls/Dev/nanochatter/tests/test_packaging_workflow.py
+- [x] T008 [US1] Add contributor workflow assertions in /Users/peternicholls/Dev/nanochatter/tests/test_packaging_workflow.py
 
 ### Implementation for User Story 1
 
-- [ ] T009 [US1] Finalize build-system and package-install metadata in /Users/peternicholls/Dev/nanochatter/pyproject.toml
-- [ ] T010 [US1] Document canonical `uv` install and test workflow in /Users/peternicholls/Dev/nanochatter/README.md
-- [ ] T011 [US1] Add canonical automation smoke coverage in /Users/peternicholls/Dev/nanochatter/.github/workflows/remediation-smoke.yml
-- [ ] T012 [US1] Align remediation validation steps in /Users/peternicholls/Dev/nanochatter/specs/001-code-review-remediation/quickstart.md
+- [x] T009 [US1] Finalize build-system and package-install metadata in /Users/peternicholls/Dev/nanochatter/pyproject.toml
+- [x] T010 [US1] Document canonical `uv` install and test workflow in /Users/peternicholls/Dev/nanochatter/README.md
+- [x] T011 [US1] Add canonical automation smoke coverage in /Users/peternicholls/Dev/nanochatter/.github/workflows/remediation-smoke.yml
+- [x] T012 [US1] Align remediation validation steps in /Users/peternicholls/Dev/nanochatter/specs/001-code-review-remediation/quickstart.md
 
 **Checkpoint**: User Story 1 should now be independently functional and verifiable.
 
@@ -67,17 +67,17 @@
 
 ### Tests for User Story 2
 
-- [ ] T013 [P] [US2] Expand accelerator telemetry coverage in /Users/peternicholls/Dev/nanochatter/tests/test_common_mps_memory.py
-- [ ] T014 [P] [US2] Expand native helper freshness coverage in /Users/peternicholls/Dev/nanochatter/tests/test_swift_stub_engine.py
-- [ ] T015 [P] [US2] Add chat role validation coverage in /Users/peternicholls/Dev/nanochatter/tests/test_chat_web_validation.py
-- [ ] T016 [P] [US2] Add runtime precision override coverage in /Users/peternicholls/Dev/nanochatter/tests/test_engine.py
+- [x] T013 [P] [US2] Expand accelerator telemetry coverage in /Users/peternicholls/Dev/nanochatter/tests/test_common_mps_memory.py
+- [x] T014 [P] [US2] Expand native helper freshness coverage in /Users/peternicholls/Dev/nanochatter/tests/test_swift_stub_engine.py
+- [x] T015 [P] [US2] Add chat role validation coverage in /Users/peternicholls/Dev/nanochatter/tests/test_chat_web_validation.py
+- [x] T016 [P] [US2] Add runtime precision override coverage in /Users/peternicholls/Dev/nanochatter/tests/test_engine.py
 
 ### Implementation for User Story 2
 
-- [ ] T017 [US2] Harden accelerator telemetry helpers in /Users/peternicholls/Dev/nanochatter/nanochat/common.py
-- [ ] T018 [US2] Unify native helper build freshness paths in /Users/peternicholls/Dev/nanochatter/nanochat/swift_build.py and /Users/peternicholls/Dev/nanochatter/scripts/mlx_swift_stub.py
-- [ ] T019 [US2] Enforce the user/assistant-only role contract in /Users/peternicholls/Dev/nanochatter/scripts/chat_web.py
-- [ ] T020 [US2] Derive KV-cache dtype from runtime precision policy in /Users/peternicholls/Dev/nanochatter/nanochat/engine.py
+- [x] T017 [US2] Harden accelerator telemetry helpers in /Users/peternicholls/Dev/nanochatter/nanochat/common.py
+- [x] T018 [US2] Unify native helper build freshness paths in /Users/peternicholls/Dev/nanochatter/nanochat/swift_build.py and /Users/peternicholls/Dev/nanochatter/scripts/mlx_swift_stub.py
+- [x] T019 [US2] Enforce the user/assistant-only role contract in /Users/peternicholls/Dev/nanochatter/scripts/chat_web.py
+- [x] T020 [US2] Derive KV-cache dtype from runtime precision policy in /Users/peternicholls/Dev/nanochatter/nanochat/engine.py
 
 **Checkpoint**: User Story 2 should now be independently functional and verifiable.
 
@@ -91,15 +91,15 @@
 
 ### Tests for User Story 3
 
-- [ ] T021 [P] [US3] Add runtime and evaluation import-boundary coverage in /Users/peternicholls/Dev/nanochatter/tests/test_runtime_boundaries.py
-- [ ] T022 [P] [US3] Add report diagnostics coverage in /Users/peternicholls/Dev/nanochatter/tests/test_report.py
+- [x] T021 [P] [US3] Add runtime and evaluation import-boundary coverage in /Users/peternicholls/Dev/nanochatter/tests/test_runtime_boundaries.py
+- [x] T022 [P] [US3] Add report diagnostics coverage in /Users/peternicholls/Dev/nanochatter/tests/test_report.py
 
 ### Implementation for User Story 3
 
-- [ ] T023 [US3] Declare direct runtime and evaluation dependencies in /Users/peternicholls/Dev/nanochatter/pyproject.toml
-- [ ] T024 [US3] Lazy-load training-only tokenization imports in /Users/peternicholls/Dev/nanochatter/nanochat/tokenizer.py and /Users/peternicholls/Dev/nanochatter/nanochat/checkpoint_manager.py
-- [ ] T025 [US3] Reduce import-time logging side effects in /Users/peternicholls/Dev/nanochatter/nanochat/common.py and /Users/peternicholls/Dev/nanochatter/nanochat/checkpoint_manager.py
-- [ ] T026 [US3] Surface diagnosable command failures in /Users/peternicholls/Dev/nanochatter/nanochat/report.py
+- [x] T023 [US3] Declare direct runtime and evaluation dependencies in /Users/peternicholls/Dev/nanochatter/pyproject.toml
+- [x] T024 [US3] Lazy-load training-only tokenization imports in /Users/peternicholls/Dev/nanochatter/nanochat/tokenizer.py and /Users/peternicholls/Dev/nanochatter/nanochat/checkpoint_manager.py
+- [x] T025 [US3] Reduce import-time logging side effects in /Users/peternicholls/Dev/nanochatter/nanochat/common.py and /Users/peternicholls/Dev/nanochatter/nanochat/checkpoint_manager.py
+- [x] T026 [US3] Surface diagnosable command failures in /Users/peternicholls/Dev/nanochatter/nanochat/report.py
 
 **Checkpoint**: User Story 3 should now be independently functional and verifiable.
 
@@ -109,9 +109,9 @@
 
 **Purpose**: Reconcile documentation and run end-to-end validation across all stories.
 
-- [ ] T027 [P] Reconcile contributor workflow docs in /Users/peternicholls/Dev/nanochatter/README.md and /Users/peternicholls/Dev/nanochatter/specs/001-code-review-remediation/contracts/contributor-test-workflow.md
-- [ ] T028 [P] Reconcile role-contract docs in /Users/peternicholls/Dev/nanochatter/specs/001-code-review-remediation/spec.md and /Users/peternicholls/Dev/nanochatter/specs/001-code-review-remediation/contracts/chat-role-validation.md
-- [ ] T029 Run quickstart validation from /Users/peternicholls/Dev/nanochatter/specs/001-code-review-remediation/quickstart.md against /Users/peternicholls/Dev/nanochatter/tests/test_packaging_workflow.py, /Users/peternicholls/Dev/nanochatter/tests/test_common_mps_memory.py, /Users/peternicholls/Dev/nanochatter/tests/test_swift_stub_engine.py, /Users/peternicholls/Dev/nanochatter/tests/test_chat_web_validation.py, /Users/peternicholls/Dev/nanochatter/tests/test_engine.py, /Users/peternicholls/Dev/nanochatter/tests/test_runtime_boundaries.py, /Users/peternicholls/Dev/nanochatter/tests/test_report.py, and /Users/peternicholls/Dev/nanochatter/.github/workflows/remediation-smoke.yml
+- [x] T027 [P] Reconcile contributor workflow docs in /Users/peternicholls/Dev/nanochatter/README.md and /Users/peternicholls/Dev/nanochatter/specs/001-code-review-remediation/contracts/contributor-test-workflow.md
+- [x] T028 [P] Reconcile role-contract docs in /Users/peternicholls/Dev/nanochatter/specs/001-code-review-remediation/spec.md and /Users/peternicholls/Dev/nanochatter/specs/001-code-review-remediation/contracts/chat-role-validation.md
+- [x] T029 Run quickstart validation from /Users/peternicholls/Dev/nanochatter/specs/001-code-review-remediation/quickstart.md against /Users/peternicholls/Dev/nanochatter/tests/test_packaging_workflow.py, /Users/peternicholls/Dev/nanochatter/tests/test_common_mps_memory.py, /Users/peternicholls/Dev/nanochatter/tests/test_swift_stub_engine.py, /Users/peternicholls/Dev/nanochatter/tests/test_chat_web_validation.py, /Users/peternicholls/Dev/nanochatter/tests/test_engine.py, /Users/peternicholls/Dev/nanochatter/tests/test_runtime_boundaries.py, /Users/peternicholls/Dev/nanochatter/tests/test_report.py, and /Users/peternicholls/Dev/nanochatter/.github/workflows/remediation-smoke.yml
 
 ---
 

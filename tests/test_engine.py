@@ -4,9 +4,12 @@ Test Engine class. Example run:
 python -m pytest tests/test_engine.py -v
 """
 
-import torch
-from nanochat.engine import KVCache, Engine
 from dataclasses import dataclass
+
+import torch
+
+import nanochat.engine as engine_mod
+from nanochat.engine import KVCache, Engine
 
 
 # -----------------------------------------------------------------------------
@@ -45,6 +48,17 @@ class MockModel:
         # Uniform logits -> equal probability for all tokens
         logits = torch.zeros(B, T, self.vocab_size)
         return logits
+
+
+class RecordingModel(MockModel):
+    def __init__(self, vocab_size=262):
+        super().__init__(vocab_size=vocab_size)
+        self.cache_dtypes = []
+
+    def forward(self, ids, kv_cache=None):
+        if kv_cache is not None:
+            self.cache_dtypes.append(kv_cache.k_cache.dtype)
+        return super().forward(ids, kv_cache=kv_cache)
 
 
 class ByteTokenizer:
@@ -265,3 +279,16 @@ def test_different_seeds_introduce_variation_when_temperature_nonzero():
 
     # Sanity check: sampling actually introduces variation
     assert len(outputs) > 1, "All seeds produced the same output which is statistically highly improbable."
+
+
+def test_generate_uses_runtime_compute_dtype_for_kv_cache(monkeypatch):
+    model = RecordingModel()
+    engine = Engine(model, ByteTokenizer())
+
+    monkeypatch.setattr(engine_mod, "COMPUTE_DTYPE", torch.bfloat16)
+
+    results, _ = engine.generate_batch([261, 72, 101, 108, 108, 111], max_tokens=2, temperature=0.0)
+
+    assert results
+    assert model.cache_dtypes
+    assert all(dtype == torch.bfloat16 for dtype in model.cache_dtypes)

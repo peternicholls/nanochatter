@@ -1,0 +1,30 @@
+name: Remediation Smoke
+
+on:
+    workflow_dispatch:
+    push:
+    pull_request:
+
+jobs:
+    smoke:
+        runs-on: ubuntu-latest
+        steps:
+            - name: Checkout
+              uses: actions/checkout@v4
+
+            - name: Set up Python
+              uses: actions/setup-python@v5
+              with:
+                  python-version: "3.11"
+
+            - name: Set up uv
+              uses: astral-sh/setup-uv@v5
+
+            - name: Sync environment
+              run: uv sync --extra cpu --group dev
+
+            - name: Verify package import
+              run: uv run python -c "import nanochat"
+
+            - name: Run canonical regression command
+              run: uv run python -m pytest -q

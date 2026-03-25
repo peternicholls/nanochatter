@@ -29,13 +29,6 @@ SPECIAL_TOKENS = [
 # I verified that 2 is the sweet spot for vocab size of 32K. 1 is a bit worse, 3 was worse still.
 SPLIT_PATTERN = r"""'(?i:[sdmt]|ll|ve|re)|[^\r\n\p{L}\p{N}]?+\p{L}+|\p{N}{1,2}| ?[^\s\p{L}\p{N}]++[\r\n]*|\s*[\r\n]|\s+(?!\S)|\s+"""
 
-# -----------------------------------------------------------------------------
-# Generic GPT-4-style tokenizer based on HuggingFace Tokenizer
-from tokenizers import Tokenizer as HFTokenizer
-from tokenizers import pre_tokenizers, decoders, Regex
-from tokenizers.models import BPE
-from tokenizers.trainers import BpeTrainer
-
 class HuggingFaceTokenizer:
     """Light wrapper around HuggingFace Tokenizer for some utilities"""
 
@@ -45,18 +38,27 @@ class HuggingFaceTokenizer:
     @classmethod
     def from_pretrained(cls, hf_path):
         # init from a HuggingFace pretrained tokenizer (e.g. "gpt2")
+        from tokenizers import Tokenizer as HFTokenizer
+
         tokenizer = HFTokenizer.from_pretrained(hf_path)
         return cls(tokenizer)
 
     @classmethod
     def from_directory(cls, tokenizer_dir):
         # init from a local directory on disk (e.g. "out/tokenizer")
+        from tokenizers import Tokenizer as HFTokenizer
+
         tokenizer_path = os.path.join(tokenizer_dir, "tokenizer.json")
         tokenizer = HFTokenizer.from_file(tokenizer_path)
         return cls(tokenizer)
 
     @classmethod
     def train_from_iterator(cls, text_iterator, vocab_size):
+        from tokenizers import Tokenizer as HFTokenizer
+        from tokenizers import Regex, decoders, pre_tokenizers
+        from tokenizers.models import BPE
+        from tokenizers.trainers import BpeTrainer
+
         # train from an iterator of text
         # Configure the HuggingFace Tokenizer
         tokenizer = HFTokenizer(BPE(
@@ -154,10 +156,7 @@ class HuggingFaceTokenizer:
         self.tokenizer.save(tokenizer_path)
         print(f"Saved tokenizer to {tokenizer_path}")
 
-# -----------------------------------------------------------------------------
-# Tokenizer based on rustbpe + tiktoken combo
 import pickle
-import rustbpe
 import tiktoken
 
 class RustBPETokenizer:
@@ -169,6 +168,8 @@ class RustBPETokenizer:
 
     @classmethod
     def train_from_iterator(cls, text_iterator, vocab_size):
+        import rustbpe
+
         # 1) train using rustbpe
         tokenizer = rustbpe.Tokenizer()
         # the special tokens are inserted later in __init__, we don't train them here

@@ -11,7 +11,8 @@ Validate the remediation plan in the existing nanochat codebase once implementat
    - `uv sync --extra gpu`
    - `uv sync --extra cpu`
    - `uv sync --extra macos`
-3. Confirm the package is importable through the same workflow:
+3. Include the test dependency group when validating locally if your environment does not already include it: `uv sync --extra <platform> --group dev`
+4. Confirm the package is importable through the same workflow:
 
 ```bash
 uv run python -c "import nanochat"
@@ -32,17 +33,17 @@ uv run python -m pytest -q
 1. Packaging/importability:
    - Confirm `uv run python -c "import nanochat"` succeeds without manual path overrides.
 2. Runtime telemetry:
-   - Run the memory-helper tests that cover absent or partially stubbed accelerator backends.
+   - Run `uv run python -m pytest -q tests/test_common_mps_memory.py`.
 3. Native helper build contract:
-   - Run the tests covering native helper build freshness and output-path assumptions.
+   - Run `uv run python -m pytest -q tests/test_swift_stub_engine.py`.
 4. Chat role contract:
-   - Run the validation coverage that confirms `system` is rejected and only `user`/`assistant` are accepted.
+   - Run `uv run python -m pytest -q tests/test_chat_web_validation.py`.
 5. Runtime precision policy:
-   - Run inference tests that confirm cache allocation follows the configured compute precision.
+   - Run `uv run python -m pytest -q tests/test_engine.py`.
 6. Runtime import boundary:
-   - Exercise runtime and evaluation import/load paths without training-only tokenization tooling and confirm the supported paths still work.
+   - Run `uv run python -m pytest -q tests/test_runtime_boundaries.py`.
 7. Reporting diagnostics:
-   - Exercise report helper error handling and confirm degraded behavior is diagnosable.
+   - Run `uv run python -m pytest -q tests/test_report.py`.
 
 ## 4. Review documentation alignment
 

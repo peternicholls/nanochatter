@@ -34,10 +34,10 @@ The most fun you can have is to train your own GPT-2 and talk to it. The entire 
 bash runs/speedrun.sh
 ```
 
-You may wish to do so in a screen session as this will take ~3 hours to run. Once it's done, you can talk to it via the ChatGPT-like web UI. Make sure again that your local uv virtual environment is active (run `source .venv/bin/activate`), and serve it:
+You may wish to do so in a screen session as this will take ~3 hours to run. Once it's done, you can talk to it via the ChatGPT-like web UI. Serve it from the repo root with the project environment:
 
 ```bash
-python -m scripts.chat_web
+uv run python -m scripts.chat_web
 ```
 
 And then visit the URL shown. Make sure to access it correctly, e.g. on Lambda use the public IP of the node you're on, followed by the port, so for example [http://209.20.xxx.xxx:8000/](http://209.20.xxx.xxx:8000/), etc. Then talk to your LLM as you'd normally talk to ChatGPT! Get it to write stories or poems. Ask it to tell you who you are to see a hallucination. Ask it why the sky is blue. Or why it's green. The speedrun is a 4e19 FLOPs capability model so it's a bit like talking to a kindergartener :).
@@ -89,6 +89,13 @@ For dependency install, use the PyTorch wheel that matches your machine:
 uv sync --extra gpu    # CUDA Linux
 uv sync --extra cpu    # Linux CPU-only
 uv sync --extra macos  # Apple Silicon / MPS
+```
+
+Validate the installed environment and run the canonical regression command from repo root:
+
+```bash
+uv run python -c "import nanochat"
+uv run python -m pytest -q
 ```
 
 On Apple Silicon, nanochat will autodetect `mps` and run in eager mode by default. This skips `torch.compile`, which is still less predictable on MPS for training. If you want to try it anyway, set `NANOCHAT_COMPILE=1`.
